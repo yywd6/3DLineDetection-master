@@ -1,4 +1,4 @@
-# set project's name
+﻿# set project's name
 PROJECT(LineFromPointCloud)
 
 ###############################################################################
@@ -6,7 +6,7 @@ PROJECT(LineFromPointCloud)
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.3)
 
 # OpenMP
-FIND_PACKAGE(OpenMP)
+FIND_PACKAGE(OpenMP REQUIRED)
 IF(OPENMP_FOUND)
 	OPTION(WITH_OPENMP "Whether to use parallel processing capabilities of OPENMP. ON/OFF" ON)
 ENDIF(OPENMP_FOUND)
@@ -22,7 +22,8 @@ ELSE(OPENMP_FOUND AND WITH_OPENMP)
 ENDIF(OPENMP_FOUND AND WITH_OPENMP)
 
 # OpenCV
-#SET(OpenCV_DIR "${VCPKG_INSTALLED_DIR}/x64-windows/share/opencv2")
-FIND_PACKAGE(OpenCV REQUIRED)
+#
+set(OpenCV_DIR "${VCPKG_INSTALLED_DIR}/x64-windows/share/opencv2")
+    find_package(OpenCV REQUIRED)
 
 ADD_SUBDIRECTORY(src)

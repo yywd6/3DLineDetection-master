@@ -1,4 +1,4 @@
-#include "CommonFunctions.h"
+﻿#include "CommonFunctions.h"
   
 using namespace cv;
 using namespace std;
@@ -11,7 +11,7 @@ void LineFunctions::lineFitting( int rows, int cols, std::vector<cv::Point> &con
 {
 	// get straight strings from the contour
 	double minDeviation = 6.0;
-	std::vector<std::vector<cv::Point> > straightString;
+	std::vector<std::vector<cv::Point> > straightString;		
 	subDivision(straightString, contour, 0, contour.size()-1, minDeviation, int(thMinimalLineLength));
 	if ( !straightString.size() )
 	{

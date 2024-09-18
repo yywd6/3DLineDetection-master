@@ -1,4 +1,4 @@
-#include <stdio.h>
+﻿#include <stdio.h>
 #include <fstream>
 
 #include "LineDetection3D.h"
@@ -12,7 +12,7 @@ using namespace nanoflann;
 
 void readDataFromFile( std::string filepath, PointCloud<double> &cloud )
 {
-	cloud.pts.reserve(10000000);
+	cloud.pts.reserve(25000000);
 	cout<<"Reading data ..."<<endl;
 
 	// 1. read in point data2
@@ -20,7 +20,7 @@ void readDataFromFile( std::string filepath, PointCloud<double> &cloud )
 	std::vector<cv::Point3d> lidarPoints;
 	double x = 0, y = 0, z = 0, color = 0;
 	double nx, ny, nz;
-	int a = 0, b = 0, c = 0; 
+	double a = 0, b = 0, c = 0; 
 	int labelIdx = 0;
 	int count = 0;
 	int countTotal = 0;
@@ -29,10 +29,10 @@ void readDataFromFile( std::string filepath, PointCloud<double> &cloud )
 		while ( !ptReader.eof() ) 
 		{
 			//ptReader >> x >> y >> z >> a >> b >> c >> labelIdx;
-			//ptReader >> x >> y >> z >> a >> b >> c >> color;
+			ptReader >> x >> y >> z >> a >> b >> c >> color;
 			//ptReader >> x >> y >> z >> color >> a >> b >> c;
 			//ptReader >> x >> y >> z >> a >> b >> c ;
-			ptReader >> x >> y >> z;
+			//ptReader >> x >> y >> z; //first
 			//ptReader >> x >> y >> z >> color;
 			//ptReader >> x >> y >> z >> nx >> ny >> nz;
 
@@ -114,8 +114,8 @@ void writeOutLines( string filePath, std::vector<std::vector<cv::Point3d> > &lin
 
 void main() 
 {
-	string fileData = "D://test data//Area5_lobby_1.txt";
-	string fileOut  = "D://test data//Area5_lobby_1(FAST)";
+	string fileData = "C:\\Users\\89183\\Desktop\\WVData\\wall - Cloud.txt";
+	string fileOut  = "C:\\Users\\89183\\Desktop\\paper1\\\\Compare\\M9\\fast.txt";
 
 	// read in data
 	PointCloud<double> pointData; 
@@ -123,13 +123,34 @@ void main()
 
 	int k = 20;
 	LineDetection3D detector;
-	std::vector<PLANE> planes;
-	std::vector<std::vector<cv::Point3d> > lines;
+	std::vector<PLANE> planes;		//planes是存储空间的线段
+	std::vector<std::vector<cv::Point3d> > lines; //存储平面的线段
 	std::vector<double> ts;
 	detector.run( pointData, k, planes, lines, ts );
+
+	return;
+
+	// 计算所有线段的总长度
+	double totalLength = 0.0;
+	for (const auto& line : lines) {
+		if (line.size() == 2) {
+			cv::Point3d start = line[0];
+			cv::Point3d end = line[1];
+			double length = std::sqrt(
+				std::pow(end.x - start.x, 2) +
+				std::pow(end.y - start.y, 2) +
+				std::pow(end.z - start.z, 2)
+			);
+			totalLength += length;
+		}
+	}
+
+	// 输出所有线段的总长度
+	std::cout << "Total Length of All Lines: " << totalLength << std::endl;
+
 	cout<<"lines number: "<<lines.size()<<endl;
 	cout<<"planes number: "<<planes.size()<<endl;
 	
-	writeOutPlanes( fileOut, planes, detector.scale );
+	//writeOutPlanes( fileOut, planes, detector.scale );
 	writeOutLines( fileOut, lines, detector.scale );
 }

@@ -59,7 +59,7 @@ struct PointCloud
 	}
 
 	// Must return the number of data points
-	inline size_t kdtree_get_point_count() const { return pts.size(); }
+	inline size_t kdtree_get_point_count() const { return pts.size(); }		 //size_t（最大的长度的无符号整数）
 
 	// Returns the dim'th component of the idx'th point in the class:
 	// Since this is inlined and the "dim" argument is typically an immediate value, the

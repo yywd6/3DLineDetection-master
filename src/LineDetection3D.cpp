@@ -1,6 +1,6 @@
 ﻿#include "LineDetection3D.h"
 #include <omp.h>
-
+#include <unordered_set>
 #include "CommonFunctions.h"
 #include "Timer.h"
 #include <opencv2/opencv.hpp>
@@ -34,10 +34,18 @@ void LineDetection3D::run( PointCloud<double> &data, int k, std::vector<PLANE> &
 	std::vector<std::vector<int> > regions;
 	pointCloudSegmentation( regions );
 	timer.Stop();
+	return;
+
+
+
 	totalTime += timer.GetElapsedSeconds();
 	timer.PrintElapsedTimeMsg(msg);
 	printf("  Point Cloud Segmentation Time: %s.\n\n", msg);
 	ts.push_back(timer.GetElapsedSeconds());
+
+	cout << "Step1: Segmentation has finshed ..." << endl;
+
+	return;
 
 	// step2: plane based 3D line detection
 	timer.Start();
@@ -63,6 +71,19 @@ void LineDetection3D::run( PointCloud<double> &data, int k, std::vector<PLANE> &
 }
 
 
+void writeOutPlane(string filePath, std::vector<std::vector<int> > regions)
+{
+	
+}
+
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <cmath>
+#include <random>
+#include <algorithm>
+#include <chrono>
+
 void LineDetection3D::pointCloudSegmentation( std::vector<std::vector<int> > &regions )
 {
 	cout<<"----- Normal Calculation ..."<<endl;
@@ -70,13 +91,47 @@ void LineDetection3D::pointCloudSegmentation( std::vector<std::vector<int> > &re
 	pcaer.Ori_PCA( this->pointData, this->k, this->pcaInfos, this->scale, this->magnitd );
 	
 	cout<<"----- Region Growing ..."<<endl;
-	double thAngle = 15.0/180.0*CV_PI;
+	double thAngle = 15.0/180.0*CV_PI; //原本是15
 	regionGrow( thAngle, regions );
 
 	// step3: region merging
 	cout<<"----- Region Merging ..."<<endl;
 	double thAnglePatch = thAngle;
 	regionMerging( thAnglePatch, regions );
+
+	// write out bounding polygon result
+	string fileEdgePoints = "C:\\Users\\89183\\Desktop\\WVData\\results\\wall - Cloud222222222Result.txt";
+	FILE* fp2 = fopen(fileEdgePoints.c_str(), "w");
+	for (int p = 0; p < regions.size(); ++p)
+	{
+		std::random_device rd;
+
+		// 结合时间和 random_device 的值来生成一个更复杂的种子
+		unsigned seed = rd() ^ std::chrono::steady_clock::now().time_since_epoch().count() * 80;
+
+		// 使用生成的种子初始化 mt19937 伪随机数生成器
+		std::mt19937 gen(seed);
+
+		// 定义一个均匀分布的范围为 0 到 255
+		std::uniform_int_distribution<> dis(0, 255);
+
+		// 生成三个随机的8位无符号整数，分别赋值给 R, G, B
+		uint8_t R = dis(gen)+ 50;
+		uint8_t G = dis(gen) + 50;
+		uint8_t B = dis(gen) + 50;
+		
+
+
+
+		for (int i = 0; i < regions[p].size(); ++i)
+		{
+			fprintf(fp2, "%.6lf   %.6lf   %.6lf    ", pointData.pts[regions[p][i]].x, pointData.pts[regions[p][i]].y, pointData.pts[regions[p][i]].z);
+			fprintf(fp2, "%d   %d   %d\n", R, G, B);
+		}
+
+	}
+	fclose(fp2);
+
 }
 
 
@@ -85,7 +140,7 @@ void LineDetection3D::regionGrow( double thAngle, std::vector<std::vector<int> >
 	double thNormal = cos(thAngle);  
 
 	// sort according to the curvature of points
-	std::vector<std::pair<int,double> > idxSorted( this->pointNum );
+	std::vector<std::pair<int,double> > idxSorted( this->pointNum ); //创建一个容器对，第一个是int（点的数量），第二个是double（曲率大小），容器数量为this->pointNum
 	for ( int i=0; i<this->pointNum; ++i )
 	{
 		idxSorted[i].first = i;
@@ -157,7 +212,7 @@ void LineDetection3D::regionGrow( double thAngle, std::vector<std::vector<int> >
 			count ++;
 		}
 
-		if ( clusterTemp.size() > 30 )
+		if ( clusterTemp.size()) //raw code :  clusterTemp.size() > 30 
 		{
 			regions.push_back( clusterTemp );
 		}
@@ -204,7 +259,7 @@ void LineDetection3D::regionMerging( double thAngle, std::vector<std::vector<int
 			scaleAvg += pcaInfos[idx].scale;
 		}
 		scaleAvg /= patches[i].idxIn.size();
-		patches[i].scale = 5.0 * scaleAvg;
+		patches[i].scale = 5.0 * scaleAvg;			//原来是5.0 * scaleAvg
 	}
 
 	// get the patch label of each point
@@ -314,7 +369,7 @@ void LineDetection3D::regionMerging( double thAngle, std::vector<std::vector<int
 				int idxSeed = patchIdx[count];
 				cv::Matx31d normalSeed = patches[idxSeed].normal;
 				cv::Matx31d ptSeed = patches[idxSeed].planePt;
-				double thOrtho = patches[idxSeed].scale;
+				double thOrtho = 10 * patches[idxSeed].scale; //原本是patches[idxSeed].scale
 
 				for ( int j=0; j<patchAdjacent[idxSeed].size(); ++j )
 				{
@@ -339,13 +394,13 @@ void LineDetection3D::regionMerging( double thAngle, std::vector<std::vector<int
 					//devDis = abs( normalSeed.val[0] * ptVector2.val[0] + normalSeed.val[1] * ptVector2.val[1] + normalSeed.val[2] * ptVector2.val[2] );
 					devDis = abs( normalStarter.val[0] * ptVector1.val[0] + normalStarter.val[1] * ptVector1.val[1] + normalStarter.val[2] * ptVector1.val[2] );
 
-					if ( min( devAngle, fabs( CV_PI - devAngle ) ) < thAngle && devDis < thOrtho )
+					if ( min( devAngle, fabs( CV_PI - devAngle ) ) < thAngle ) //( min( devAngle, fabs( CV_PI - devAngle ) ) < thAngle && devDis < thOrtho ) °
 					{
 						patchIdx.push_back( idxCur );
 						mergedIndex[idxCur] = 1;
 
 						totalPoints += patches[idxCur].idxAll.size();
-						if ( totalPoints > thRegionSize )
+						if (0) //raw code：totalPoints > thRegionSize 
 						{
 							isEnough = true;
 							break;
@@ -362,7 +417,7 @@ void LineDetection3D::regionMerging( double thAngle, std::vector<std::vector<int
 
 			// create a new cluster
 			std::vector<int> patchNewCur;
-			for ( int j=0; j<patchIdx.size(); ++j )
+			/*for ( int j=0; j<patchIdx.size(); ++j )
 			{
 				int idx = patchIdx[j];
 
@@ -370,10 +425,29 @@ void LineDetection3D::regionMerging( double thAngle, std::vector<std::vector<int
 				{
 					patchNewCur.push_back( patches[idx].idxAll[m] );
 				}
+			}*/
+
+
+
+			std::unordered_set<int> uniquePoints;  // 使用 unordered_set 进行去重
+
+			for (int j = 0; j < patchIdx.size(); ++j)
+			{
+				int idx = patchIdx[j];
+
+				for (int m = 0; m < patches[idx].idxAll.size(); ++m)
+				{
+					int point = patches[idx].idxAll[m];
+					if (uniquePoints.find(point) == uniquePoints.end())  // 如果点没有在集合中
+					{
+						patchNewCur.push_back(point);   // 加入到 patchNewCur
+						uniquePoints.insert(point);     // 插入到去重集合
+					}
+				}
 			}
 
 			// 
-			if (patchNewCur.size() > 100)
+			if (patchNewCur.size())	//raw code : patchNewCur.size() > 100
 			{
 				regions.push_back( patchNewCur );
 			}

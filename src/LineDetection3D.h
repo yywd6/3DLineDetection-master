@@ -1,4 +1,4 @@
-#ifndef _LINE_DETECTION_H_
+﻿#ifndef _LINE_DETECTION_H_
 #define _LINE_DETECTION_H_
 #pragma once
 
@@ -7,7 +7,14 @@
 struct PLANE
 {
 	double scale;
+
+	/*
+	The outermost vector has a size that represents the number of lines.
+	Each line is represented by a vector of cv::Point3d objects.
+	Each cv::Point3d object represents a 3D point.
+	*/
 	std::vector<std::vector<std::vector<cv::Point3d> > > lines3d;
+
 
 	PLANE &operator =(const PLANE &info)
 	{

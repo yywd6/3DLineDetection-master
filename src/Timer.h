@@ -1,4 +1,4 @@
-/* --- --- ---
+﻿/* --- --- ---
  * Copyright (C) 2008--2010 Idiap Research Institute (.....@idiap.ch)
  * All rights reserved.
  * 
