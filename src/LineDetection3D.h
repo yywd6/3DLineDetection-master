@@ -30,7 +30,7 @@ public:
 	LineDetection3D();
 	~LineDetection3D();
 
-	void run( PointCloud<double> &data, int k, std::vector<PLANE> &planes, std::vector<std::vector<cv::Point3d> > &lines, std::vector<double> &ts );
+	void run(PointCloud<double>& data, PointCloud<double>& projectData, int k, std::vector<PLANE>& planes, std::vector<std::vector<cv::Point3d> >& lines, std::vector<double>& ts);
 
 	void pointCloudSegmentation( std::vector<std::vector<int> > &regions );
 
@@ -51,12 +51,15 @@ public:
 
 	void lineMerging( std::vector<PLANE> &planes, std::vector<std::vector<cv::Point3d> > &lines );
 
+	void planeMerging( std::vector<std::vector<int> >& regions, double thAngle );  //New functions, which is used to merge planes.
+
 public:
 	int k;
 	int pointNum;
 	double scale, magnitd;
 	std::vector<PCAInfo> pcaInfos;
 	PointCloud<double> pointData;
+	PointCloud<double> projectPointData;
 };
 
 #endif //_LINE_DETECTION_H_

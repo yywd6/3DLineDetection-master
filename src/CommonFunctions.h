@@ -43,7 +43,7 @@ public:
 struct PCAInfo
 {
 	double lambda0, scale;
-	cv::Matx31d normal, planePt;
+	cv::Matx31d normal, planePt,boundMax, boundMin, middlePoints;
 	std::vector<int> idxAll, idxIn;
 
 	PCAInfo &operator =(const PCAInfo &info)

@@ -10,7 +10,7 @@ using namespace cv;
 using namespace std;
 using namespace nanoflann;
 
-void readDataFromFile( std::string filepath, PointCloud<double> &cloud )
+void readDataFromFile( std::string filepath, PointCloud<double> &cloud, PointCloud<double>& cloud2)
 {
 	cloud.pts.reserve(25000000);
 	cout<<"Reading data ..."<<endl;
@@ -29,14 +29,15 @@ void readDataFromFile( std::string filepath, PointCloud<double> &cloud )
 		while ( !ptReader.eof() ) 
 		{
 			//ptReader >> x >> y >> z >> a >> b >> c >> labelIdx;
-			ptReader >> x >> y >> z >> a >> b >> c >> color;
-			//ptReader >> x >> y >> z >> color >> a >> b >> c;
+			//ptReader >> x >> y >> z >> a >> b >> c >> color;
+			ptReader >> x >> y >> z >> color >> a >> b >> c;
 			//ptReader >> x >> y >> z >> a >> b >> c ;
 			//ptReader >> x >> y >> z; //first
 			//ptReader >> x >> y >> z >> color;
 			//ptReader >> x >> y >> z >> nx >> ny >> nz;
 
 			cloud.pts.push_back(PointCloud<double>::PtData(x,y,z));
+			cloud2.pts.push_back(PointCloud<double>::PtData(x, y, 0));
 
 		}
 		ptReader.close();
@@ -114,19 +115,19 @@ void writeOutLines( string filePath, std::vector<std::vector<cv::Point3d> > &lin
 
 void main() 
 {
-	string fileData = "C:\\Users\\89183\\Desktop\\WVData\\wall - Cloud.txt";
+	string fileData = "C:\\Users\\89183\\Desktop\\WVData\\part\\part4.txt";
 	string fileOut  = "C:\\Users\\89183\\Desktop\\paper1\\\\Compare\\M9\\fast.txt";
 
 	// read in data
-	PointCloud<double> pointData; 
-	readDataFromFile( fileData, pointData );
+	PointCloud<double> pointData, projectPointData; 
+	readDataFromFile( fileData, pointData, projectPointData);
 
 	int k = 20;
 	LineDetection3D detector;
 	std::vector<PLANE> planes;		//planes是存储空间的线段
 	std::vector<std::vector<cv::Point3d> > lines; //存储平面的线段
 	std::vector<double> ts;
-	detector.run( pointData, k, planes, lines, ts );
+	detector.run( pointData, projectPointData, k, planes, lines, ts );
 
 	return;
 

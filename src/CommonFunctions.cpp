@@ -300,10 +300,21 @@ void PCAFunctions::PCASingle( std::vector<std::vector<double> > &pointData, PCAI
 	// 
 	pcaInfo.idxIn.resize( k );
 	cv::Matx31d h_mean( 0, 0, 0 );
-	for( i = 0; i < k; ++i )
+	double maxX = pointData[0][0], maxY = pointData[0][1], maxZ = pointData[0][2];
+	double minX = pointData[0][0], minY = pointData[0][1], minZ = pointData[0][2];
+
+	for (int i = 0; i < k; ++i)
 	{
 		pcaInfo.idxIn[i] = i;
-		h_mean += cv::Matx31d( pointData[i][0], pointData[i][1], pointData[i][2] );
+		h_mean += cv::Matx31d(pointData[i][0], pointData[i][1], pointData[i][2]);
+
+		if (pointData[i][0] > maxX) maxX = pointData[i][0];
+		if (pointData[i][1] > maxY) maxY = pointData[i][1];
+		if (pointData[i][2] > maxZ) maxZ = pointData[i][2];
+
+		if (pointData[i][0] < minX) minX = pointData[i][0];
+		if (pointData[i][1] < minY) minY = pointData[i][1];
+		if (pointData[i][2] < minZ) minZ = pointData[i][2];
 	}
 	h_mean *= ( 1.0 / k );
 
@@ -326,6 +337,9 @@ void PCAFunctions::PCASingle( std::vector<std::vector<double> > &pointData, PCAI
 	pcaInfo.lambda0 = h_cov_evals.row(2).val[0] / ( h_cov_evals.row(0).val[0] + h_cov_evals.row(1).val[0] + h_cov_evals.row(2).val[0] );
 	pcaInfo.normal  = h_cov_evectors.row(2).t();
 	pcaInfo.planePt = h_mean;
+	pcaInfo.boundMax = cv::Matx31d(maxX, maxY, maxZ);
+	pcaInfo.boundMin = cv::Matx31d(minX, minY, minZ);
+	pcaInfo.middlePoints = cv::Matx31d( (maxX+minX)/2, (maxY + minY) / 2, (maxZ + minZ) / 2);
 
 	// outliers removal via MCMD
 	MCMD_OutlierRemoval( pointData, pcaInfo );	

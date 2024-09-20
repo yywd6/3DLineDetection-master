@@ -17,9 +17,10 @@ LineDetection3D::~LineDetection3D()
 {
 }
 
-void LineDetection3D::run( PointCloud<double> &data, int k, std::vector<PLANE> &planes, std::vector<std::vector<cv::Point3d> > &lines, std::vector<double> &ts  )
+void LineDetection3D::run( PointCloud<double> &data, PointCloud<double>& projectData, int k, std::vector<PLANE> &planes, std::vector<std::vector<cv::Point3d> > &lines, std::vector<double> &ts  )
 {
 	this->pointData = data;
+	this->projectPointData = projectData;
 	this->pointNum = data.pts.size();
 	this->k = k;
 
@@ -34,8 +35,8 @@ void LineDetection3D::run( PointCloud<double> &data, int k, std::vector<PLANE> &
 	std::vector<std::vector<int> > regions;
 	pointCloudSegmentation( regions );
 	timer.Stop();
-	return;
 
+	
 
 
 	totalTime += timer.GetElapsedSeconds();
@@ -99,8 +100,12 @@ void LineDetection3D::pointCloudSegmentation( std::vector<std::vector<int> > &re
 	double thAnglePatch = thAngle;
 	regionMerging( thAnglePatch, regions );
 
+
+	cout << "----- Plane Merging ..." << endl;
+	planeMerging(regions, thAngle);
+
 	// write out bounding polygon result
-	string fileEdgePoints = "C:\\Users\\89183\\Desktop\\WVData\\results\\wall - Cloud222222222Result.txt";
+	string fileEdgePoints = "C:\\Users\\89183\\Desktop\\WVData\\partResults\\part4Result.txt";
 	FILE* fp2 = fopen(fileEdgePoints.c_str(), "w");
 	for (int p = 0; p < regions.size(); ++p)
 	{
@@ -119,9 +124,6 @@ void LineDetection3D::pointCloudSegmentation( std::vector<std::vector<int> > &re
 		uint8_t R = dis(gen)+ 50;
 		uint8_t G = dis(gen) + 50;
 		uint8_t B = dis(gen) + 50;
-		
-
-
 
 		for (int i = 0; i < regions[p].size(); ++i)
 		{
@@ -212,7 +214,7 @@ void LineDetection3D::regionGrow( double thAngle, std::vector<std::vector<int> >
 			count ++;
 		}
 
-		if ( clusterTemp.size()) //raw code :  clusterTemp.size() > 30 
+		if ( clusterTemp.size() > 30) //raw code :  clusterTemp.size() > 30 
 		{
 			regions.push_back( clusterTemp );
 		}
@@ -369,7 +371,7 @@ void LineDetection3D::regionMerging( double thAngle, std::vector<std::vector<int
 				int idxSeed = patchIdx[count];
 				cv::Matx31d normalSeed = patches[idxSeed].normal;
 				cv::Matx31d ptSeed = patches[idxSeed].planePt;
-				double thOrtho = 10 * patches[idxSeed].scale; //原本是patches[idxSeed].scale
+				double thOrtho = patches[idxSeed].scale; //原本是patches[idxSeed].scale
 
 				for ( int j=0; j<patchAdjacent[idxSeed].size(); ++j )
 				{
@@ -394,13 +396,13 @@ void LineDetection3D::regionMerging( double thAngle, std::vector<std::vector<int
 					//devDis = abs( normalSeed.val[0] * ptVector2.val[0] + normalSeed.val[1] * ptVector2.val[1] + normalSeed.val[2] * ptVector2.val[2] );
 					devDis = abs( normalStarter.val[0] * ptVector1.val[0] + normalStarter.val[1] * ptVector1.val[1] + normalStarter.val[2] * ptVector1.val[2] );
 
-					if ( min( devAngle, fabs( CV_PI - devAngle ) ) < thAngle ) //( min( devAngle, fabs( CV_PI - devAngle ) ) < thAngle && devDis < thOrtho ) °
+					if (min(devAngle, fabs(CV_PI - devAngle)) < thAngle && devDis < thOrtho) //( min( devAngle, fabs( CV_PI - devAngle ) ) < thAngle && devDis < thOrtho ) °
 					{
 						patchIdx.push_back( idxCur );
 						mergedIndex[idxCur] = 1;
 
 						totalPoints += patches[idxCur].idxAll.size();
-						if (0) //raw code：totalPoints > thRegionSize 
+						if (totalPoints > thRegionSize) //raw code：totalPoints > thRegionSize 
 						{
 							isEnough = true;
 							break;
@@ -427,8 +429,6 @@ void LineDetection3D::regionMerging( double thAngle, std::vector<std::vector<int
 				}
 			}*/
 
-
-
 			std::unordered_set<int> uniquePoints;  // 使用 unordered_set 进行去重
 
 			for (int j = 0; j < patchIdx.size(); ++j)
@@ -447,13 +447,235 @@ void LineDetection3D::regionMerging( double thAngle, std::vector<std::vector<int
 			}
 
 			// 
-			if (patchNewCur.size())	//raw code : patchNewCur.size() > 100
+			if (patchNewCur.size() > 500)	//raw code : patchNewCur.size() > 100
 			{
 				regions.push_back( patchNewCur );
 			}
 		}
 	}
 }
+
+void LineDetection3D::planeMerging(std::vector<std::vector<int> >& regions, double thAngle )
+{
+	std::sort(regions.begin(), regions.end(), [](const std::vector<int>& a, const std::vector<int>& b) {
+		return a.size() > b.size();
+		});		//Sort by the number points of each region, form large to small
+
+	//for (int p = 0; p < regions.size(); ++p)
+	//{
+	//	// 生成文件名，例如 "plane0.txt", "plane1.txt" 等
+	//	std::string filename = "c:\\users\\89183\\desktop\\wvdata\\eachplane\\plane" + std::to_string(p) + ".txt";
+	//	FILE* fp = fopen(filename.c_str(), "w");  // 为每个区域创建一个独立文件
+
+	//	if (fp == nullptr) {
+	//		std::cerr << "error opening file: " << filename << std::endl;
+	//		continue;
+	//	}
+
+	//	std::random_device rd;
+	//	unsigned seed = rd() ^ std::chrono::steady_clock::now().time_since_epoch().count() * 80;
+	//	std::mt19937 gen(seed);
+	//	std::uniform_int_distribution<> dis(0, 255);
+	//	uint8_t r = dis(gen) + 50;
+	//	uint8_t g = dis(gen) + 50;
+	//	uint8_t b = dis(gen) + 50;
+
+	//	for (int i = 0; i < regions[p].size(); ++i)
+	//	{
+	//		// 将点数据写入每个单独的文件中
+	//		fprintf(fp, "%.6lf   %.6lf   %.6lf    ", pointData.pts[regions[p][i]].x, pointData.pts[regions[p][i]].y, pointData.pts[regions[p][i]].z);
+	//		fprintf(fp, "%d   %d   %d\n", r, g, b);
+	//	}
+
+	//	fclose(fp);  // 关闭当前文件
+	//}
+
+
+	// step1: plane fitting via PCA for each region
+	std::vector<PCAInfo> patches;
+	patches.resize(regions.size());
+
+#pragma omp parallel for
+	for (int i = 0; i < regions.size(); ++i)
+	{
+		int pointNumCur = regions[i].size();
+		std::vector<std::vector<double> > pointDataCur(pointNumCur);
+		for (int j = 0; j < pointNumCur; ++j)
+		{
+			pointDataCur[j].resize(3);
+			pointDataCur[j][0] = this->pointData.pts[regions[i][j]].x;
+			pointDataCur[j][1] = this->pointData.pts[regions[i][j]].y;
+			pointDataCur[j][2] = this->pointData.pts[regions[i][j]].z;
+		}
+
+		PCAFunctions pcaer;
+		pcaer.PCASingle(pointDataCur, patches[i]);
+
+		patches[i].idxAll = regions[i];
+		double scaleAvg = 0.0;
+		for (int j = 0; j < patches[i].idxIn.size(); ++j)
+		{
+			int idx = regions[i][patches[i].idxIn[j]];
+			patches[i].idxIn[j] = idx;
+			scaleAvg += pcaInfos[idx].scale;
+		}
+		scaleAvg /= patches[i].idxIn.size();
+		patches[i].scale = 5.0 * scaleAvg;			//原来是5.0 * scaleAvg
+	}
+	
+	//start merging
+	for (size_t baseIdx = 0; baseIdx < regions.size(); ++baseIdx)
+	{
+		if (regions[baseIdx].empty()) continue;
+		std::vector<int> parallelPlane;
+
+		for (size_t i = baseIdx + 1; i < regions.size(); ++i)
+		{
+			// 使用向量点积计算夹角
+			double dotProduct = patches[i].normal.dot(patches[baseIdx].normal);
+			// 修正浮点误差，使点积范围在 [-1, 1] 之间
+			dotProduct = std::max(-1.0, std::min(1.0, dotProduct));
+			double devAngle = acos(dotProduct);
+
+			if (min(devAngle, fabs(CV_PI - devAngle)) < thAngle)
+			{
+				parallelPlane.push_back(i);
+			}
+		}
+
+		int i = 0;
+		while (i < parallelPlane.size())  // 使用 while 循环替代 for 循环
+		{
+			auto curPlane = parallelPlane[i];
+			if (regions[curPlane].empty())
+			{
+				i++;
+				continue;
+			}
+			// 计算方向向量
+			cv::Matx31d direction = patches[baseIdx].middlePoints - patches[curPlane].middlePoints;
+
+			// 使用点积计算 devAngle
+			double dotProduct = direction.dot(patches[baseIdx].normal);
+			// 修正浮点误差，使点积范围在 [-1, 1] 之间
+			dotProduct = std::max(-1.0, std::min(1.0, dotProduct));
+			double devAngle2 = acos(dotProduct);
+
+			double minAngle = CV_PI * 85.0 / 180.0; // 75°
+			double maxAngle = CV_PI * 95.0 / 180.0; // 105°
+
+			if (minAngle < std::min(devAngle2, fabs(CV_PI - devAngle2)) && std::min(devAngle2, fabs(CV_PI - devAngle2)) < maxAngle)
+			{
+				float baseDistanse = std::sqrt(pow((patches[baseIdx].boundMax.val[0] - patches[baseIdx].boundMin.val[0]), 2.0) +
+					pow((patches[baseIdx].boundMax.val[1] - patches[baseIdx].boundMin.val[1]), 2.0));
+				float curDistanse = std::sqrt(pow((patches[curPlane].boundMax.val[0] - patches[curPlane].boundMin.val[0]), 2.0) +
+					pow((patches[curPlane].boundMax.val[1] - patches[curPlane].boundMin.val[1]), 2.0));
+				float pointDistance = std::sqrt(pow((patches[baseIdx].middlePoints.val[0] - patches[curPlane].middlePoints.val[0]), 2.0) +
+					pow((patches[baseIdx].middlePoints.val[1] - patches[curPlane].middlePoints.val[1]), 2.0));
+
+				float thDis = pointDistance - (baseDistanse + curDistanse) / 2;
+
+				if (thDis < 0.1)
+				{
+					// 将 regions[i] 中的点加入 regions[baseIdx]
+					regions[baseIdx].insert(regions[baseIdx].end(), regions[curPlane].begin(), regions[curPlane].end());
+					// 删除 regions[i] 的点
+					regions[curPlane].clear(); // 不直接删除，只清空，以保持索引一致性
+
+					//更新信息
+					int pointNumCur = regions[baseIdx].size();
+					std::vector<std::vector<double> > pointDataCur(pointNumCur);
+					for (int j = 0; j < pointNumCur; ++j)
+					{
+						pointDataCur[j].resize(3);
+						pointDataCur[j][0] = this->pointData.pts[regions[baseIdx][j]].x;
+						pointDataCur[j][1] = this->pointData.pts[regions[baseIdx][j]].y;
+						pointDataCur[j][2] = this->pointData.pts[regions[baseIdx][j]].z;
+					}
+
+					PCAFunctions pcaer;
+					pcaer.PCASingle(pointDataCur, patches[baseIdx]);
+
+					// 更新后重置索引，重新开始遍历
+					i = 0;
+					continue;
+				}
+			}
+			// 如果没有更新，继续处理下一个平面
+			++i;
+		}	
+	}
+
+	regions.erase(std::remove_if(regions.begin(), regions.end(),
+		[](const std::vector<int>& region) { return region.empty(); }),
+		regions.end());
+//------------------------------------------------------------------------
+
+	//// 对每一个 region[i] 作为基准依次合并其他 regions
+	//for (size_t baseIdx = 0; baseIdx < regions.size(); ++baseIdx) {
+	//	if (regions[baseIdx].empty()) continue;
+
+	//	std::vector<int> mergeIndex;
+	//	// 1. 获取 regions[baseIdx] 的最大和最小 x、y 值
+	//	float minX = projectPointData.pts[regions[baseIdx][0]].x;
+	//	float maxX = projectPointData.pts[regions[baseIdx][0]].x;
+	//	float minY = projectPointData.pts[regions[baseIdx][0]].y;
+	//	float maxY = projectPointData.pts[regions[baseIdx][0]].y;
+
+	//	for (int idx : regions[baseIdx]) {
+	//		minX = std::min<float>(minX, projectPointData.pts[idx].x);
+	//		maxX = std::max<float>(maxX, projectPointData.pts[idx].x);
+	//		minY = std::min<float>(minY, projectPointData.pts[idx].y);
+	//		maxY = std::max<float>(maxY, projectPointData.pts[idx].y);
+
+	//	}
+
+	//	// 2. 遍历其他 regions[i]，从 baseIdx + 1 开始
+	//	for (size_t i = baseIdx + 1; i < regions.size(); ++i) {
+	//		if (regions[i].empty()) continue;
+
+	//		int innerPointsCount = 0;
+	//		for (int idx : regions[i]) {
+	//			cv::Point p(static_cast<float>(projectPointData.pts[idx].x), static_cast<float>(projectPointData.pts[idx].y));
+	//			// 判断是否在区域内或距离在阈值范围内
+	//			bool isInside = (p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY);
+	//			if (!isInside) {
+	//				// 计算点与区域边界的最小距离
+	//				float minDistX = std::min(fabs(p.x - minX), fabs(p.x - maxX));
+	//				float minDistY = std::min(fabs(p.y - minY), fabs(p.y - maxY));
+	//				float distToRegion = sqrt(minDistX * minDistX + minDistY * minDistY);
+	//				isInside = (distToRegion <= 0.1);
+	//			}
+
+	//			if (isInside) {
+	//				innerPointsCount++;
+	//			}
+	//		}
+
+	//		// 3. 如果内点数量占 regions[i] 的 10%，则合并
+	//		if (innerPointsCount >= regions[i].size() * 0.1) {
+
+	//			mergeIndex.push_back(i);
+	//	
+	//		}
+	//	}
+
+	//	for (auto index: mergeIndex)
+	//	{
+	//		// 将 regions[i] 中的点加入 regions[baseIdx]
+	//		regions[baseIdx].insert(regions[baseIdx].end(), regions[index].begin(), regions[index].end());
+	//		// 删除 regions[i] 的点
+	//		regions[index].clear(); // 不直接删除，只清空，以保持索引一致性
+	//	}
+	//}
+
+	//// 清理空的 regions
+	//regions.erase(std::remove_if(regions.begin(), regions.end(),
+	//	[](const std::vector<int>& region) { return region.empty(); }),
+	//	regions.end());
+	
+}
+
 
 void LineDetection3D::planeBased3DLineDetection( std::vector<std::vector<int> > &regions, std::vector<PLANE> &planes )
 {
